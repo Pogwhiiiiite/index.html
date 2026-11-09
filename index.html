@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBERSEC // Équipe & Carte Mentale</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            black: '#070a14', dark: '#0c1220', panel: '#10192c', border: '#1a2942',
+                            green: '#00ff66', cyan: '#00f3ff', red: '#ff0055', yellow: '#ffcc00', purple: '#b026ff'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['Share Tech Mono', 'monospace'],
+                        display: ['Orbitron', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        html, body { height: 100%; }
+        body {
+            background-color: #070a14;
+            color: #00ff66;
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            margin: 0;
+        }
+        #app { height: 100vh; height: 100dvh; }
+
+        .scanlines {
+            position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .3;
+            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,.35) 50%);
+            background-size: 100% 4px;
+        }
+        .vignette {
+            position: fixed; inset: 0; pointer-events: none; z-index: 51;
+            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(7,10,20,.85) 100%);
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #080d1a; }
+        ::-webkit-scrollbar-thumb { background: #1b2e4b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00f3ff; }
+
+        .selectable { user-select: text; -webkit-user-select: text; }
+        #mindmap-canvas { touch-action: none; display: block; }
+
+        .member-card {
+            border: 1px solid; background: rgba(12,18,32,.92);
+            transition: transform .2s, box-shadow .2s, border-color .2s;
+        }
+        .member-card:hover, .member-card.is-active {
+            transform: translateY(-4px);
+            border-color: var(--c) !important;
+            box-shadow: 0 0 22px color-mix(in srgb, var(--c) 40%, transparent);
+        }
+        .member-card:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+
+        .glitch-title { text-shadow: 2px 0 rgba(255,0,85,.55), -2px 0 rgba(0,243,255,.45); }
+
+        .btn-hud {
+            border: 1px solid; border-radius: .25rem; padding: .25rem .75rem; font-weight: 700;
+            display: inline-flex; align-items: center; gap: .375rem; transition: background .15s, color .15s;
+        }
+        .btn-hud.on { background: currentColor; }
+        .btn-hud.on > * { color: #000; }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .fade-up { animation: fadeUp .35s ease both; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation: none !important; transition: none !important; }
+        }
+    </style>
+</head>
+<body>
+<div id="app" class="w-screen flex flex-col relative overflow-hidden">
+
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <!-- HEADER -->
+    <header class="relative z-40 bg-cyber-dark/95 border-b border-cyber-border px-3 py-2 flex flex-wrap items-center justify-between gap-2 backdrop-blur-md">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-3 h-3 rounded-full bg-cyber-green animate-pulse shrink-0"></div>
+            <h1 class="font-display font-black text-base md:text-xl text-cyber-cyan tracking-wider glitch-title truncate">
+                CYBERSEC<span class="text-cyber-green">//ÉQUIPE &amp; CARTE MENTALE</span>
+            </h1>
+            <span class="hidden xl:inline text-xs px-2 py-0.5 border border-cyber-green/40 text-cyber-green rounded bg-cyber-green/10">
+                MATRICE D'INTERACTION SÉCURISÉE
+            </span>
+        </div>
+
+        <nav class="flex items-center gap-2 text-xs" aria-label="Vues">
+            <button id="btn-view-team" type="button" class="btn-hud text-cyber-red border-cyber-red/60 bg-cyber-red/10 hover:bg-cyber-red hover:!text-black">
+                <i class="fas fa-users"></i> ÉQUIPE (5)
+            </button>
+            <button id="btn-view-map" type="button" class="btn-hud text-cyber-cyan border-cyber-cyan/60 bg-cyber-cyan/10 hover:bg-cyber-cyan hover:!text-black">
+                <i class="fas fa-sitemap"></i> CARTE MENTALE
+            </button>
+        </nav>
+
+        <div class="flex items-center gap-2 text-xs">
+            <button id="btn-tour" type="button" class="btn-hud text-cyber-cyan border-cyber-cyan bg-cyber-cyan/10 hover:bg-cyber-cyan hover:!text-black">
+                <i class="fas fa-play"></i><span class="hidden sm:inline">LANCER LA PRÉSENTATION</span>
+            </button>
+            <button id="btn-audio" type="button" aria-label="Activer ou couper le son" class="px-2.5 py-1 border border-cyber-border hover:border-cyber-yellow bg-cyber-panel rounded text-slate-300 hover:text-cyber-yellow flex items-center gap-1">
+                <i id="audio-icon" class="fas fa-volume-up text-cyber-green"></i>
+                <span id="audio-status" class="hidden md:inline">AUDIO</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="relative z-10 flex-1 flex min-h-0 overflow-hidden">
+
+        <!-- STAGE: map + team overlay -->
+        <section id="stage" class="flex-1 relative min-w-0 bg-cyber-black overflow-hidden">
+            <div id="canvas-container" class="absolute inset-0">
+                <canvas id="mindmap-canvas" class="w-full h-full cursor-grab"></canvas>
+            </div>
+
+            <!-- Branch shortcuts -->
+            <div class="absolute bottom-3 left-3 z-10 flex flex-col gap-1 text-[11px] text-slate-400 bg-cyber-dark/90 p-2.5 rounded border border-cyber-border backdrop-blur max-w-[85%]">
+                <div class="text-cyber-cyan font-bold mb-0.5 flex items-center gap-1"><i class="fas fa-sitemap"></i> CATÉGORIES CYBER</div>
+                <div id="branch-shortcuts" class="flex flex-col gap-1"></div>
+            </div>
+
+            <!-- Zoom controls -->
+            <div class="absolute top-3 left-3 z-10 flex items-center gap-1 bg-cyber-dark/90 p-1 rounded border border-cyber-border text-xs">
+                <button id="zoom-in" type="button" class="w-7 h-7 flex items-center justify-center hover:bg-cyber-panel text-cyber-cyan rounded" title="Zoomer" aria-label="Zoomer"><i class="fas fa-plus"></i></button>
+                <button id="zoom-out" type="button" class="w-7 h-7 flex items-center justify-center hover:bg-cyber-panel text-cyber-cyan rounded" title="Dézoomer" aria-label="Dézoomer"><i class="fas fa-minus"></i></button>
+                <button id="zoom-fit" type="button" class="px-2 h-7 flex items-center justify-center hover:bg-cyber-panel text-slate-300 rounded" title="Recentrer (F)" aria-label="Recentrer"><i class="fas fa-compress-arrows-alt"></i></button>
+            </div>
+
+            <!-- Tour bar -->
+            <div id="tour-bar" class="hidden absolute top-3 right-3 z-20 bg-cyber-dark/95 border border-cyber-yellow rounded text-xs shadow-lg overflow-hidden max-w-[calc(100%-1.5rem)]">
+                <div class="px-3 py-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span class="text-cyber-yellow font-bold"><i class="fas fa-compass"></i> PRÉSENTATION GUIDÉE</span>
+                    <span id="tour-counter" class="text-slate-300">ÉTAPE 1/1</span>
+                    <div class="flex items-center gap-1">
+                        <button id="tour-prev" type="button" aria-label="Étape précédente" class="px-2 py-0.5 bg-cyber-panel hover:bg-cyber-yellow hover:text-black rounded text-cyber-yellow border border-cyber-yellow"><i class="fas fa-chevron-left"></i></button>
+                        <button id="tour-auto" type="button" aria-label="Lecture automatique" class="px-2 py-0.5 bg-cyber-panel hover:bg-cyber-yellow hover:text-black rounded text-cyber-yellow border border-cyber-yellow"><i class="fas fa-forward"></i> AUTO</button>
+                        <button id="tour-next" type="button" aria-label="Étape suivante" class="px-2 py-0.5 bg-cyber-panel hover:bg-cyber-yellow hover:text-black rounded text-cyber-yellow border border-cyber-yellow"><i class="fas fa-chevron-right"></i></button>
+                        <button id="tour-stop" type="button" aria-label="Quitter la présentation" class="px-2 py-0.5 bg-cyber-panel hover:bg-cyber-red hover:text-black rounded text-cyber-red border border-cyber-red"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="h-0.5 bg-cyber-border"><div id="tour-progress" class="h-full bg-cyber-yellow transition-all duration-300" style="width:0%"></div></div>
+            </div>
+
+            <!-- TEAM OVERLAY -->
+            <div id="team-view" class="absolute inset-0 z-20 bg-cyber-black/95 p-4 md:p-6 flex flex-col overflow-y-auto backdrop-blur-md transition-opacity duration-500">
+                <div class="text-center space-y-2 shrink-0">
+                    <div class="inline-block px-3 py-0.5 border border-cyber-red text-cyber-red rounded text-xs uppercase tracking-widest bg-cyber-red/10 animate-pulse">
+                        <i class="fas fa-user-shield mr-1"></i> IDENTIFICATION DU COLLECTIF CYBER
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-black font-display text-cyber-green tracking-wider glitch-title">PRÉSENTATION DE L'ÉQUIPE</h2>
+                    <p class="text-xs text-cyber-cyan max-w-xl mx-auto">Opérateurs Cybersécurité &amp; Spécialistes d'Évaluation des Menaces</p>
+                </div>
+
+                <div id="team-grid" class="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4 my-auto py-5"></div>
+
+                <div class="flex flex-wrap gap-2 justify-between items-center border-t border-cyber-border pt-3 shrink-0">
+                    <span class="text-xs text-slate-400">5 MEMBRES CONNECTÉS // SESSION PRÊTE</span>
+                    <button id="btn-go-map" type="button" class="px-5 py-2 bg-cyber-green text-black font-bold text-xs rounded hover:bg-white transition flex items-center gap-2">
+                        ACCÉDER À LA CARTE MENTALE DES OUTILS <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- HUD DRAWER (side panel on desktop, bottom sheet on mobile) -->
+        <aside id="hud" aria-label="Inspecteur"
+               class="fixed md:static bottom-0 inset-x-0 md:inset-auto z-30 max-h-[70vh] md:max-h-none md:h-full md:w-96 md:shrink-0 bg-cyber-dark/95 border-t md:border-t-0 md:border-l border-cyber-border flex flex-col backdrop-blur transition-transform duration-300 translate-y-full md:translate-y-0">
+            <div class="p-3 border-b border-cyber-border flex items-center justify-between bg-cyber-panel/60 shrink-0">
+                <div class="flex items-center gap-2">
+                    <i id="hud-icon" class="fas fa-cube text-cyber-cyan"></i>
+                    <span id="hud-label" class="text-xs font-bold text-cyber-cyan tracking-wider">TÉLÉMÉTRIE HUD</span>
+                </div>
+                <button id="hud-close" type="button" aria-label="Fermer" class="text-slate-400 hover:text-cyber-red transition text-sm px-2"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="hud-body" class="selectable flex-1 overflow-y-auto p-4 space-y-4 text-xs"></div>
+        </aside>
+    </main>
+
+    <!-- FOOTER TERMINAL -->
+    <footer class="relative z-40 bg-cyber-dark border-t border-cyber-border flex flex-col text-xs">
+        <div class="flex items-center justify-between px-3 py-1.5 bg-cyber-panel/80">
+            <form id="cli-form" class="flex-1 flex items-center gap-2">
+                <label for="cli-input" class="text-cyber-green font-bold whitespace-nowrap">root@cyberdeck:~#</label>
+                <input type="text" id="cli-input" autocomplete="off" spellcheck="false"
+                       placeholder="equipe, carte, hamza, nmap, suivant, aide…"
+                       class="flex-1 min-w-0 bg-transparent text-cyber-cyan text-xs focus:outline-none placeholder-slate-600">
+                <button type="submit" class="px-3 py-0.5 border border-cyber-green/40 text-cyber-green hover:bg-cyber-green hover:text-black rounded text-[11px] font-bold">EXEC</button>
+            </form>
+            <div class="hidden lg:flex items-center gap-4 text-slate-400 text-[11px] ml-4">
+                <span>NAV: <kbd class="bg-cyber-dark px-1 border border-cyber-border rounded text-cyber-cyan">←</kbd> <kbd class="bg-cyber-dark px-1 border border-cyber-border rounded text-cyber-cyan">→</kbd> / <kbd class="bg-cyber-dark px-1 border border-cyber-border rounded text-cyber-cyan">ESPACE</kbd> · <kbd class="bg-cyber-dark px-1 border border-cyber-border rounded text-cyber-cyan">ÉCHAP</kbd></span>
+                <span id="live-clock" class="text-cyber-cyan font-bold">00:00:00 UTC</span>
+            </div>
+        </div>
+        <div id="cli-output" class="selectable h-16 md:h-20 bg-cyber-black p-2 border-t border-cyber-border/40 overflow-y-auto text-[11px] text-slate-300 space-y-0.5"></div>
+    </footer>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+    /* =========================================================
+       ASCII BANNER GENERATOR (police 3x5 -> blocs)
+       ========================================================= */
+    const FONT = {
+        A: ['.#.', '#.#', '###', '#.#', '#.#'],
+        B: ['##.', '#.#', '##.', '#.#', '##.'],
+        C: ['.##', '#..', '#..', '#..', '.##'],
+        D: ['##.', '#.#', '#.#', '#.#', '##.'],
+        E: ['###', '#..', '##.', '#..', '###'],
+        G: ['.##', '#..', '#.#', '#.#', '.##'],
+        H: ['#.#', '#.#', '###', '#.#', '#.#'],
+        I: ['###', '.#.', '.#.', '.#.', '###'],
+        K: ['#.#', '#.#', '##.', '#.#', '#.#'],
+        L: ['#..', '#..', '#..', '#..', '###'],
+        M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'],
+        N: ['#..#', '##.#', '#.##', '#..#', '#..#'],
+        O: ['###', '#.#', '#.#', '#.#', '###'],
+        P: ['##.', '#.#', '##.', '#..', '#..'],
+        Q: ['###', '#.#', '#.#', '###', '..#'],
+        R: ['##.', '#.#', '##.', '#.#', '#.#'],
+        S: ['.##', '#..', '.#.', '..#', '##.'],
+        T: ['###', '.#.', '.#.', '.#.', '.#.'],
+        U: ['#.#', '#.#', '#.#', '#.#', '###'],
+        W: ['#...#', '#...#', '#.#.#', '##.##', '#...#'],
+        X: ['#.#', '#.#', '.#.', '#.#', '#.#'],
+        Y: ['#.#', '#.#', '.#.', '.#.', '.#.'],
+        Z: ['###', '..#', '.#.', '#..', '###'],
+        ' ': ['  ', '  ', '  ', '  ', '  ']
+    };
+
+    function banner(text) {
+        const rows = ['', '', '', '', ''];
+        for (const ch of text.toUpperCase()) {
+            const g = FONT[ch] || FONT[' '];
+            for (let i = 0; i < 5; i++) {
+                rows[i] += g[i].replace(/#/g, '█').replace(/\./g, ' ') + ' ';
+            }
+        }
+        return rows.join('\n');
+    }
+
+    /* =========================================================
+       DONNÉES ÉQUIPE
+       ========================================================= */
+    const TEAM = [
+       {
+    id: 'hamza', name: 'HAMZA', tag: 'RED TEAM LEAD', badge: 'CHEF DE PROJET',
+    title: 'Hacking Offensif', sub: 'Pentest & Exploits', color: '#ff0055',
+    role: 'Red Team Lead & Hacking Offensif',
+    specialty: "Le Lead Technique & Data",
+    desc: "Supervise l'ensemble du projet tout en pilotant la partie technique. Expert en hacking offensif et analyse de données, il orchestre les opérations, développe les scripts complexes et garantit la cohérence globale des livrables.",
+    ascii: ['   /\\_/\\  ', '  ( o.o ) ', '   > ^ <  ', '  /|   |\\ ', ' /_|___|_\\']
+},
+{
+    id: 'islam', name: 'ISLAM', tag: 'OPERATOR', badge: 'Le Co-Chef',
+    title: 'Cyber Security', sub: 'Défense & SOC', color: '#ffcc00',
+    role: "Membre de l'Équipe Cybersécurité",
+    specialty: 'Le Présentateur',
+    desc: "Co-pilote la logistique de l'équipe et s'assure du bon déroulement du projet. Porte-parole du groupe, il est responsable du support visuel et de la prestation orale lors de la soutenance finale.",
+    ascii: ['    __    ', '  >(o )_  ', '   /xx\\ \\ ', '  //xx\\\\/ ', '    ^^    ']
+},
+{
+    id: 'souhail', name: 'SOUHAIL', tag: 'OPERATOR', badge: 'MEMBRE ÉQUIPE',
+    title: 'Cyber Security', sub: 'Analyse Système', color: '#00f3ff',
+    role: "Membre de l'Équipe Cybersécurité",
+    specialty: 'Documentaliste',
+    desc: "Chargé de la rigueur académique et de la recherche théorique. Il collecte les sources scientifiques fiables, effectue l'état de l'art et rédige la base documentaire essentielle à l'analyse des systèmes.",
+    ascii: ['  .------.', ' /  ~  ~  \\', '|  (o)(o)  |', ' \\    ||  / ', "  '------' "]
+},
+{
+    id: 'mouaad', name: 'MOUAAD', tag: 'OPERATOR', badge: 'MEMBRE ÉQUIPE',
+    title: 'Cyber Security', sub: 'Auditeur Réseau', color: '#00ff66',
+    role: "Membre de l'Équipe Cybersécurité",
+    specialty: "Le Contrôleur Qualité",
+    desc: "Garant de l'exactitude des livrables et des audits. Il inspecte la conformité du rapport final, vérifie le respect des directives, élimine les incohérences et réalise une évaluation à blanc avant la remise.",
+    ascii: ['   ______ ', '  /      \\', ' |  X  X  |', ' |   ||   |', '  \\______/']
+},
+{
+    id: 'RAYANE', name: 'RAYANE', tag: 'OPERATOR', badge: 'MEMBRE ÉQUIPE',
+    title: 'Cyber Security', sub: 'Investigation', color: '#b026ff',
+    role: "Membre de l'Équipe Cybersécurité",
+    specialty: 'Le Gestionnaire des Ressources',
+    desc: "Responsable du patrimoine numérique et des données de l'équipe. Il administre les répertoires partagés, assure le suivi des versions de code/rapports, et centralise les annexes ainsi que les preuves d'investigation.",
+    ascii: ['   .---.  ', '  /     \\ ', ' |  o o  |', '  \\  =  / ', "   '---'  "]
+}
+    ];
+    const teamById = Object.fromEntries(TEAM.map(m => [m.id, m]));
+
+    /* =========================================================
+       DONNÉES CARTE MENTALE (placement automatique)
+       ========================================================= */
+    const BRANCHES = [
+        { id: 'b1', title: '1. RECONNAISSANCE & FOOTPRINTING', color: '#00ff66', angle: 225, desc: "Découverte d'actifs, cartographie réseau & OSINT.",
+          definition: "Première phase d'un test d'intrusion : collecte passive et active d'informations sur une cible (adresses IP, domaines, services, employés) avant toute action offensive." },
+        { id: 'b2', title: '2. EXPLOITATION WEB & APPSEC', color: '#00f3ff', angle: 315, desc: 'Audit des applications Web, APIs et bases de données.',
+          definition: "Ensemble des techniques visant à identifier et exploiter les failles de sécurité des applications web (sites, APIs, bases de données), telles que les injections ou les failles d'authentification." },
+        { id: 'b3', title: '3. PENTEST & EXPLOITATION', color: '#ff0055', angle: 20, desc: 'Infiltration de systèmes, pivots et élévation de privilèges.',
+          definition: "Un test d'intrusion (pentest) simule une cyberattaque réelle pour exploiter des vulnérabilités, obtenir un accès non autorisé et évaluer la résistance d'un système." },
+        { id: 'b4', title: '4. REVERSE ENG & FORENSICS', color: '#ffcc00', angle: 160, desc: 'Rétro-ingénierie de malwares et analyse forensic.',
+          definition: "La rétro-ingénierie consiste à analyser un programme compilé pour comprendre son fonctionnement interne ; l'informatique légale (forensic) reconstitue les preuves numériques d'un incident." },
+        { id: 'b5', title: '5. DÉFENSE & BLUE TEAM', color: '#b026ff', angle: 90, desc: 'SIEM, détection des intrusions & surveillance SOC.',
+          definition: "La Blue Team regroupe les équipes et outils chargés de détecter, bloquer et répondre aux cyberattaques en temps réel (surveillance, détection d'intrusion, réponse à incident)." }
+    ];
+
+    const TOOLS = [
+        { id: 'nmap', parent: 'b1', title: 'Nmap', label: 'Nmap', banner: 'NMAP',
+          definition: "Nmap (Network Mapper) : outil open-source de découverte réseau et d'audit de sécurité qui identifie les hôtes actifs, les ports ouverts et les services en écoute.",
+          cmd: 'nmap -sV -sC -p- 192.168.1.1',
+          desc: 'Scanner de ports et de services réseau de référence sous Kali Linux.',
+          defense: "Filtrage de ports via pare-feu (iptables/nftables) et désactivation des services inutiles.",
+          attackDemo: [
+              '$ nmap -sV -sC -p- target.lab   (simulation)',
+              'Starting Nmap...',
+              'Scanning target.lab (10.10.10.12)',
+              'PORT     STATE SERVICE   VERSION',
+              '22/tcp   open  ssh       OpenSSH 7.2',
+              '80/tcp   open  http      Apache 2.4.18',
+              '3306/tcp open  mysql     MySQL 5.5.60 (non patché)',
+              "[!] 1 service vulnérable détecté (MySQL obsolète exposé)"
+          ],
+          defenseDemo: [
+              '$ sudo ufw status verbose',
+              'Pare-feu activé (deny incoming par défaut)',
+              '22/tcp   ALLOW  IP admin uniquement',
+              '80/tcp   ALLOW  reverse-proxy uniquement',
+              '3306/tcp DENY   accès externe bloqué',
+              "[OK] Surface d'attaque réduite : MySQL isolé du réseau public",
+              '[OK] Nouveau scan externe : seuls 22 et 80 visibles'
+          ] },
+        { id: 'masscan', parent: 'b1', title: 'Masscan', label: 'Masscan', banner: 'MASSCAN',
+          definition: "Masscan : scanner de ports conçu pour analyser l'intégralité d'Internet ou de très larges plages d'adresses IP en quelques minutes, grâce à un moteur asynchrone très rapide.",
+          cmd: 'masscan 10.0.0.0/8 -p80,443 --rate 10000',
+          desc: "Scanner de ports ultra-rapide capable d'analyser de très larges plages d'adresses en quelques minutes.",
+          defense: 'Rate-limiting et détection des balayages SYN au niveau du pare-feu.',
+          attackDemo: [
+              '$ masscan 10.10.10.0/24 -p80,443,8080 --rate 10000   (simulation)',
+              'Scan en cours... 100% en 4.2s',
+              'Discovered open port 80/tcp on 10.10.10.5',
+              'Discovered open port 8080/tcp on 10.10.10.22',
+              'Discovered open port 443/tcp on 10.10.10.5',
+              '[!] Panneau admin exposé sans restriction (10.10.10.22:8080)'
+          ],
+          defenseDemo: [
+              '$ iptables -A INPUT -p tcp --syn -m limit --limit 20/s -j ACCEPT',
+              'Rate-limiting SYN activé',
+              '[OK] Balayage détecté par Snort (IDS) et ralenti',
+              "[OK] IP source mise en quarantaine après seuil dépassé",
+              'Scan externe suivant : 0 résultat en 60s (timeout)'
+          ] },
+        { id: 'shodan', parent: 'b1', title: 'Shodan CLI', label: 'Shodan', banner: 'SHODAN',
+          definition: "Shodan : moteur de recherche indexant les objets connectés à Internet (serveurs, caméras, routeurs, IoT) à partir de leurs bannières de service, souvent utilisé pour repérer des équipements mal sécurisés.",
+          cmd: 'shodan host 8.8.8.8',
+          desc: "Moteur de recherche d'équipements connectés à Internet et d'objets IoT.",
+          defense: "Audit régulier de la surface d'attaque externe pour fermer l'accès aux interfaces d'administration exposées.",
+          attackDemo: [
+              '$ shodan host 198.51.100.42   (simulation)',
+              'Organisation : ACME-Corp-Demo',
+              'Services exposés :',
+              '  23/tcp  Telnet  bannière par défaut "admin/admin"',
+              '  554/tcp RTSP    caméra IP non authentifiée',
+              '[!] Objet IoT exposé sans authentification'
+          ],
+          defenseDemo: [
+              '$ audit-surface --scope externe',
+              'Fermeture du port Telnet (23) — remplacé par SSH',
+              'Authentification forcée sur le flux RTSP',
+              "Objet retiré des résultats Shodan après ré-scan (72h)",
+              "[OK] Surface d'attaque externe : 0 service non authentifié"
+          ] },
+
+        { id: 'burp', parent: 'b2', title: 'Burp Suite', label: 'Burp Suite', banner: 'BURP',
+          definition: "Burp Suite : proxy d'interception qui se place entre le navigateur et le serveur web pour analyser, modifier et tester la sécurité des requêtes HTTP/HTTPS échangées par une application.",
+          cmd: 'burpsuite --project-file=audit.burp',
+          desc: "Proxy d'interception et suite complète de tests de sécurité applicative Web.",
+          defense: "Déploiement d'un WAF (Web Application Firewall) et validation stricte des entrées utilisateur.",
+          attackDemo: [
+              '$ burpsuite --target http://app.lab/login   (simulation)',
+              'Interception de la requête POST /login',
+              'Paramètre "redirect" vulnérable (Open Redirect)',
+              'Cookie de session sans flag HttpOnly détecté',
+              '[!] 2 faiblesses confirmées côté client'
+          ],
+          defenseDemo: [
+              '$ deploy app.lab --patch session-cookie',
+              'Set-Cookie: session=... HttpOnly; Secure; SameSite=Strict',
+              'Validation de "redirect" par liste blanche de domaines',
+              '[OK] Nouveau scan Burp : 0 faiblesse critique'
+          ] },
+        { id: 'sqlmap', parent: 'b2', title: 'SQLmap', label: 'SQLmap', banner: 'SQLMAP',
+          definition: "SQLmap : outil qui automatise la détection et l'exploitation des injections SQL, une faille où des données non filtrées sont interprétées comme du code par la base de données.",
+          cmd: 'sqlmap -u "http://target.local/item.php?id=1" --dbs',
+          desc: "Outil automatisé de détection et d'exploitation des injections SQL.",
+          defense: 'Utilisation exclusive de requêtes préparées (Parameterized Statements / PDO).',
+          attackDemo: [
+              '$ sqlmap -u "http://target.lab/item.php?id=1" --dbs   (simulation)',
+              'Paramètre id vulnérable (boolean-based blind)',
+              'back-end DBMS: MySQL 5.5',
+              'bases disponibles : shop_db, users_db',
+              "[!] Injection SQL confirmée sur le paramètre \"id\""
+          ],
+          defenseDemo: [
+              '$ git diff item.php',
+              '- "SELECT * FROM items WHERE id=" . $_GET["id"]',
+              '+ $stmt = $pdo->prepare("SELECT * FROM items WHERE id = ?");',
+              '+ $stmt->execute([$_GET["id"]]);',
+              '[OK] Requête préparée déployée',
+              "[OK] Nouveau test sqlmap : paramètre \"id\" non exploitable"
+          ] },
+        { id: 'zap', parent: 'b2', title: 'OWASP ZAP', label: 'OWASP ZAP', banner: 'OWASP ZAP',
+          definition: "OWASP ZAP (Zed Attack Proxy) : scanner de vulnérabilités web open-source maintenu par la fondation OWASP, utilisé pour détecter automatiquement les failles courantes (XSS, injections, en-têtes manquants).",
+          cmd: 'zap-cli quick-scan http://target.local',
+          desc: "Scanner de vulnérabilités Web open-source de l'OWASP.",
+          defense: 'Intégration du scan de vulnérabilités automatisé dans le pipeline CI/CD (DevSecOps).',
+          attackDemo: [
+              '$ zap-cli quick-scan http://target.local   (simulation)',
+              'Analyse passive + active en cours...',
+              'ALERTE (Moyenne) : Content-Security-Policy absent',
+              'ALERTE (Haute) : champ de recherche vulnérable au XSS réfléchi',
+              '[!] 2 alertes à corriger avant mise en production'
+          ],
+          defenseDemo: [
+              '$ deploy --headers-hardening',
+              "Content-Security-Policy: default-src 'self'",
+              'Échappement systématique des entrées affichées (anti-XSS)',
+              '[OK] Nouveau scan ZAP : 0 alerte Haute/Moyenne'
+          ] },
+
+        { id: 'metasploit', parent: 'b3', title: 'Metasploit Framework', label: 'Metasploit', banner: 'METASPLOIT',
+          definition: "Metasploit Framework : plateforme de référence regroupant des centaines d'exploits et de payloads prêts à l'emploi pour tester l'exploitation de vulnérabilités connues.",
+          cmd: 'msfconsole -q -x "use exploit/multi/handler"',
+          desc: "Plateforme majeure de développement, de test et d'exécution d'exploits.",
+          defense: 'Gestion rigoureuse des correctifs (Patch Management) et EDR sur tous les postes.',
+          attackDemo: [
+              '$ msfconsole -x "use exploit/multi/handler"   (simulation)',
+              'Cible : srv-app-01 (10.10.10.30), service non patché',
+              'Envoi du payload de démonstration...',
+              'meterpreter > sessions -l',
+              '[!] Session simulée établie — preuve de concept uniquement'
+          ],
+          defenseDemo: [
+              '$ patch-management --apply CVE-DEMO-2024',
+              'Service vulnérable mis à jour vers la version corrigée',
+              'EDR : règle de blocage "reverse shell" activée',
+              "[OK] Tentative d'exploitation suivante bloquée et journalisée"
+          ] },
+        { id: 'hydra', parent: 'b3', title: 'THC Hydra', label: 'Hydra', banner: 'HYDRA',
+          definition: "THC Hydra : outil d'attaque par force brute capable de tester rapidement de nombreuses combinaisons identifiant/mot de passe sur de multiples protocoles (SSH, FTP, HTTP…).",
+          cmd: 'hydra -l admin -P pass.txt 192.168.1.50 ssh',
+          desc: "Outil d'attaque par force brute en ligne, multi-protocole et très rapide.",
+          defense: 'Authentification multifacteur (MFA) obligatoire et blocage des IP après plusieurs échecs (Fail2ban).',
+          attackDemo: [
+              '$ hydra -l admin -P pass.txt 10.10.10.30 ssh   (simulation)',
+              'Essai 1/500 : admin:123456 — échec',
+              'Essai 214/500 : admin:Password123 — SUCCÈS (fictif)',
+              '[!] Mot de passe faible trouvé par force brute'
+          ],
+          defenseDemo: [
+              '$ fail2ban-client status sshd',
+              'Blocage automatique après 5 échecs (10 min)',
+              'MFA (TOTP) activé sur tous les comptes admin',
+              '[OK] Essai suivant : compte verrouillé après 5 tentatives'
+          ] },
+
+        { id: 'ghidra', parent: 'b4', title: 'Ghidra', label: 'Ghidra', banner: 'GHIDRA',
+          definition: "Ghidra : suite de rétro-ingénierie qui décompile un programme binaire en code lisible, permettant d'analyser son fonctionnement sans disposer du code source original.",
+          cmd: 'ghidraRun',
+          desc: "Suite d'ingénierie inverse et décompilateur binaire développé par la NSA.",
+          defense: "Obfuscation du code binaire, contrôle d'intégrité des exécutables et signature numérique.",
+          attackDemo: [
+              '$ ghidraRun sample_demo.bin   (simulation)',
+              'Désassemblage en cours...',
+              'Fonction check_license() : clé codée en dur détectée',
+              '[!] Secret statique trouvé dans le binaire'
+          ],
+          defenseDemo: [
+              '$ build --strip --obfuscate --sign',
+              'Suppression des symboles de debug',
+              'Clé déplacée vers un module HSM externe',
+              'Signature numérique du binaire ajoutée',
+              '[OK] Analyse statique suivante : aucun secret exploitable'
+          ] },
+        { id: 'wireshark', parent: 'b4', title: 'Wireshark / TShark', label: 'Wireshark', banner: 'WIRESHARK',
+          definition: "Wireshark : analyseur de protocoles réseau qui capture et décode le trafic circulant sur une interface, afin d'inspecter en détail chaque paquet échangé.",
+          cmd: 'tshark -i eth0 -n -f "tcp port 80"',
+          desc: 'Analyseur de protocoles réseau et capture de paquets en temps réel.',
+          defense: 'Chiffrement de tous les flux réseau internes (TLS 1.3, IPsec, SSH).',
+          attackDemo: [
+              '$ tshark -i eth0 -f "tcp port 80"   (simulation)',
+              'Capture de 120 paquets HTTP en clair',
+              'POST /login  user=demo&pass=4321 (NON chiffré)',
+              '[!] Identifiants visibles en clair sur le réseau'
+          ],
+          defenseDemo: [
+              '$ deploy --force-tls',
+              'Redirection HTTP -> HTTPS (TLS 1.3) sur tout le trafic',
+              'HSTS activé (Strict-Transport-Security)',
+              '[OK] Capture suivante : trafic chiffré, aucune donnée lisible'
+          ] },
+
+        { id: 'wazuh', parent: 'b5', title: 'Wazuh SIEM/XDR', label: 'Wazuh', banner: 'WAZUH',
+          definition: "Wazuh : plateforme SIEM/XDR open-source qui centralise les journaux système, détecte les comportements suspects et déclenche des réponses automatisées aux incidents.",
+          cmd: 'systemctl status wazuh-manager',
+          desc: 'Plateforme open-source de détection des menaces, SIEM et réponse aux incidents.',
+          defense: "Centralisation des journaux d'événements et règles d'alerte corrélées automatisées.",
+          attackDemo: [
+              '(simulation) événement entrant sur srv-01 :',
+              '14:02:01 Failed password for admin from 198.51.100.7',
+              '14:02:03 Failed password for admin from 198.51.100.7',
+              '14:02:05 Failed password for admin from 198.51.100.7',
+              '[!] Pic anormal de tentatives de connexion détecté'
+          ],
+          defenseDemo: [
+              'Wazuh > règle 5712 déclenchée : "SSH brute force"',
+              'Action active-response : IP bannie automatiquement',
+              'Alerte envoyée au SOC (niveau 10)',
+              '[OK] Incident corrélé et clôturé en 45s'
+          ] },
+        { id: 'snort', parent: 'b5', title: 'Snort IDS/IPS', label: 'Snort', banner: 'SNORT',
+          definition: "Snort : système de détection et de prévention d'intrusion (IDS/IPS) qui analyse le trafic réseau en temps réel selon des règles de signatures pour repérer ou bloquer les attaques connues.",
+          cmd: 'snort -A console -i eth0 -c /etc/snort/snort.conf',
+          desc: 'Système de détection et de prévention des intrusions réseau basé sur des signatures.',
+          defense: 'Mise à jour quotidienne de la base de signatures IDS et blocage automatique des IP malveillantes.',
+          attackDemo: [
+              '(simulation) ALERT [1:1000001:1] Scan de ports détecté',
+              'SRC 198.51.100.7 -> DST 10.10.10.0/24',
+              'Signature : TCP SYN scan multi-ports',
+              '[!] Comportement de reconnaissance identifié'
+          ],
+          defenseDemo: [
+              'Snort (mode IPS) : règle "drop" appliquée automatiquement',
+              'Paquets suivants de 198.51.100.7 : DROP',
+              'Base de signatures mise à jour (dernière sync : il y a 2h)',
+              "[OK] Scan bloqué avant d'atteindre la cible"
+          ] }
+    ];
+
+    const nodesList = [
+        { id: 'root', type: 'root', title: 'CYBERSEC // KALI MATRIX', lines: ['CYBERSEC', 'KALI MATRIX'], color: '#00f3ff',
+          x: 0, y: 0, desc: 'Carte mentale des équipements de sécurité offensive & défensive.',
+          definition: "La cybersécurité est l'ensemble des pratiques, outils et processus qui protègent les systèmes informatiques, les réseaux et les données contre les attaques, les accès non autorisés et les dommages." }
+    ];
+
+    BRANCHES.forEach(b => {
+        const a = b.angle * Math.PI / 180;
+        const bn = Object.assign({}, b, {
+            type: 'branch', parent: 'root',
+            lines: b.title.split(' & ').map((s, i) => i ? '& ' + s : s),
+            x: Math.cos(a) * 260, y: Math.sin(a) * 260
+        });
+        nodesList.push(bn);
+        const kids = TOOLS.filter(t => t.parent === b.id);
+        const spread = kids.length > 2 ? 46 : 38;
+        kids.forEach((t, i) => {
+            const off = (i - (kids.length - 1) / 2) * spread;
+            const ta = (b.angle + off) * Math.PI / 180;
+            nodesList.push(Object.assign({}, t, {
+                type: 'tool', color: b.color, lines: [t.label],
+                x: bn.x + Math.cos(ta) * 200, y: bn.y + Math.sin(ta) * 200
+            }));
+        });
+    });
+    const nodeById = Object.fromEntries(nodesList.map(n => [n.id, n]));
+
+    /* =========================================================
+       AUDIO
+       ========================================================= */
+    let audioEnabled = true;
+    let audioCtx = null;
+
+    function playTone(freq = 600, type = 'sine', duration = 0.08) {
+        if (!audioEnabled) return;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        } catch (e) { /* audio indisponible */ }
+    }
+
+    function toggleAudio() {
+        audioEnabled = !audioEnabled;
+        $('audio-icon').className = audioEnabled ? 'fas fa-volume-up text-cyber-green' : 'fas fa-volume-mute text-slate-500';
+        $('audio-status').textContent = audioEnabled ? 'AUDIO' : 'MUET';
+        playTone(800, 'sine', 0.1);
+    }
+
+    /* =========================================================
+       TERMINAL
+       ========================================================= */
+    function logTerminal(msg, colorClass) {
+        const box = $('cli-output');
+        const div = document.createElement('div');
+        div.className = colorClass || 'text-slate-300';
+        div.textContent = '[' + new Date().toISOString().substr(11, 8) + '] ' + msg;
+        box.appendChild(div);
+        while (box.children.length > 200) box.removeChild(box.firstChild);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    /* =========================================================
+       VUES (équipe / carte)
+       ========================================================= */
+    let currentView = 'team';
+
+    function setView(view, silent) {
+        currentView = view;
+        const team = $('team-view');
+        const hidden = view !== 'team';
+        team.classList.toggle('opacity-0', hidden);
+        team.classList.toggle('pointer-events-none', hidden);
+        team.setAttribute('aria-hidden', String(hidden));
+        if (hidden) team.setAttribute('inert', ''); else team.removeAttribute('inert');
+        if (!silent) {
+            logTerminal(hidden ? '[VIEW] Carte mentale des outils.' : "[VIEW] Fiche d'introduction de l'équipe.",
+                hidden ? 'text-cyber-cyan' : 'text-cyber-red');
+        }
+    }
+
+    function renderTeamGrid() {
+        $('team-grid').innerHTML = TEAM.map(m => `
+            <button type="button" data-member="${m.id}" class="member-card rounded-lg p-3 md:p-4 flex flex-col items-center justify-between text-center cursor-pointer"
+                    style="--c:${m.color}; border-color:${m.color}88">
+                <div class="w-full border-b pb-2 mb-2" style="border-color:${m.color}55">
+                    <span class="text-[10px] font-bold uppercase tracking-wider" style="color:${m.color}">[${m.tag}]</span>
+                    <h3 class="text-lg md:text-xl font-bold font-display" style="color:${m.color}">${m.name}</h3>
+                </div>
+                ${m.emoji
+                    ? `<div class="my-2 select-none leading-none text-5xl md:text-6xl" style="min-height:3.2rem" role="img" aria-label="Avatar ${m.name}">${m.emoji}</div>`
+                    : `<pre class="text-[9px] md:text-[10px] leading-tight my-2 select-none" style="color:${m.color}">${m.ascii.join('\n').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`}
+                <div class="w-full space-y-1">
+                    <span class="text-[11px] font-bold text-cyber-yellow block">${m.title}</span>
+                    <span class="text-[10px] text-slate-400 block">${m.sub}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded inline-block font-bold mt-2" style="background:${m.color}22;color:${m.color}">${m.badge}</span>
+                </div>
+            </button>`).join('');
+    }
+
+    function highlightCard(id) {
+        document.querySelectorAll('.member-card').forEach(c => c.classList.toggle('is-active', c.dataset.member === id));
+    }
+
+    /* =========================================================
+       HUD / INSPECTEUR
+       ========================================================= */
+    const hudEl = $('hud');
+    function openHud() { hudEl.classList.remove('translate-y-full'); }
+    function hideHudSheet() { hudEl.classList.add('translate-y-full'); }
+
+    function setHudPlaceholder() {
+        $('hud-label').textContent = 'TÉLÉMÉTRIE HUD';
+        $('hud-icon').className = 'fas fa-cube text-cyber-cyan';
+        $('hud-body').innerHTML = `
+            <div class="text-slate-500 text-center py-8 leading-relaxed">
+                <i class="fas fa-hand-pointer text-2xl mb-3 block text-cyber-cyan/60"></i>
+                Cliquez sur un nœud de la carte mentale<br>ou sur un membre de l'équipe<br>pour ouvrir sa télémétrie.
+            </div>`;
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    function selectTeamMember(id) {
+        const m = teamById[id];
+        if (!m) return;
+        clearSim();
+        playTone(750, 'square', 0.08);
+        highlightCard(id);
+        $('hud-label').textContent = 'DOSSIER OPÉRATEUR';
+        $('hud-icon').className = 'fas fa-user-shield text-cyber-red';
+        $('hud-body').innerHTML = `
+            <div class="space-y-4 fade-up">
+                <div class="border-b border-cyber-border pb-2">
+                    <span class="text-[10px] text-cyber-cyan font-bold uppercase">[DOSSIER #${String(TEAM.indexOf(m) + 1).padStart(3, '0')}]</span>
+                    <h2 class="text-2xl font-black font-display" style="color:${m.color}">${m.name}</h2>
+                    <span class="text-xs font-bold text-slate-300 block mt-0.5">${escapeHtml(m.role)}</span>
+                </div>
+                <div class="bg-cyber-black p-3 rounded border border-cyber-border">
+                    <div class="text-[10px] text-slate-400 mb-1">${m.emoji ? 'AVATAR :' : 'AVATAR EN CODE ASCII :'}</div>
+                    ${m.emoji
+                        ? `<div class="text-center text-7xl leading-none py-2" role="img" aria-label="Avatar ${m.name}">${m.emoji}</div>`
+                        : `<pre class="text-xs font-bold leading-tight" style="color:${m.color}">${escapeHtml(m.ascii.join('\n'))}</pre>`}
+                </div>
+                <div class="bg-cyber-dark p-3 rounded border border-cyber-border space-y-1">
+                    <div class="text-[11px] font-bold text-cyber-cyan">SPÉCIALITÉ :</div>
+                    <p class="text-slate-300 text-xs">${escapeHtml(m.specialty)}</p>
+                </div>
+                <div class="bg-cyber-panel p-3 rounded border border-cyber-border space-y-1">
+                    <div class="text-[11px] font-bold text-cyber-green">PROFIL OPÉRATIONNEL :</div>
+                    <p class="text-slate-300 text-xs leading-relaxed">${escapeHtml(m.desc)}</p>
+                </div>
+            </div>`;
+        openHud();
+        logTerminal('[MEMBRE] Dossier de ' + m.name + ' chargé.', 'text-cyber-yellow');
+    }
+
+    function renderNodeHud(node) {
+        $('hud-label').textContent = node.type.toUpperCase();
+        $('hud-icon').className = node.type === 'tool' ? 'fas fa-wrench text-cyber-yellow' : 'fas fa-cube text-cyber-cyan';
+
+        let extra = '';
+        if (node.type === 'tool') {
+            extra += `
+                <div class="bg-cyber-black p-2.5 rounded border border-cyber-border">
+                    <div class="text-[10px] text-slate-400 mb-1">SIGNATURE (CODE ASCII) :</div>
+                    <pre class="text-[10px] leading-none overflow-x-auto" style="color:${node.color}">${banner(node.banner)}</pre>
+                </div>
+                <div class="bg-cyber-dark p-2.5 rounded border border-cyber-border space-y-1">
+                    <div class="flex items-center justify-between">
+                        <div class="text-[10px] font-bold text-cyber-cyan">COMMANDE BASIQUE DE LANCEMENT :</div>
+                        <button type="button" data-copy="${escapeHtml(node.cmd)}" class="text-[10px] px-1.5 py-0.5 border border-cyber-border rounded text-slate-300 hover:text-cyber-green hover:border-cyber-green"><i class="fas fa-copy"></i> COPIER</button>
+                    </div>
+                    <code class="text-[11px] text-cyber-green block break-all">$ ${escapeHtml(node.cmd)}</code>
+                </div>
+                <div class="bg-cyber-panel p-2.5 rounded border border-cyber-border space-y-1">
+                    <div class="text-[10px] font-bold text-cyber-red">CONTRE-MESURE BLUE TEAM (DÉFENSE) :</div>
+                    <p class="text-slate-300 text-xs leading-relaxed">${escapeHtml(node.defense)}</p>
+                </div>
+                <div class="bg-cyber-black p-2.5 rounded border border-cyber-border space-y-2">
+                    <div class="text-[10px] font-bold text-cyber-cyan"><i class="fas fa-flask"></i> DÉMO INTERACTIVE (SIMULATION)</div>
+                    <div class="flex gap-2">
+                        <button type="button" data-sim="attack" data-sim-node="${node.id}" class="flex-1 justify-center btn-hud text-[10px] text-cyber-red border-cyber-red/60 bg-cyber-red/10 hover:bg-cyber-red hover:!text-black">
+                            <i class="fas fa-bolt"></i> SIMULER L'ATTAQUE
+                        </button>
+                        <button type="button" data-sim="defense" data-sim-node="${node.id}" class="flex-1 justify-center btn-hud text-[10px] text-cyber-green border-cyber-green/60 bg-cyber-green/10 hover:bg-cyber-green hover:!text-black">
+                            <i class="fas fa-shield-halved"></i> SIMULER LA DÉFENSE
+                        </button>
+                    </div>
+                    <pre id="sim-output" class="text-[10px] leading-snug bg-cyber-black border border-cyber-border rounded p-2 min-h-[4.5rem] max-h-56 overflow-y-auto whitespace-pre-wrap text-slate-300"></pre>
+                    <div class="text-[9px] text-slate-500 italic leading-relaxed">
+                        Démo pédagogique à sortie scénarisée (données fictives). Aucune commande n'est réellement exécutée, aucun réseau n'est contacté.
+                    </div>
+                </div>
+                <div class="text-[10px] text-cyber-yellow/80 border border-cyber-yellow/30 bg-cyber-yellow/5 rounded p-2 leading-relaxed">
+                    <i class="fas fa-triangle-exclamation"></i> Usage réel réservé aux environnements autorisés (laboratoire, CTF, audit avec accord écrit).
+                </div>
+                <button type="button" data-node="${node.parent}" class="text-[11px] text-slate-400 hover:text-cyber-cyan"><i class="fas fa-arrow-left"></i> Retour à la catégorie</button>`;
+        } else if (node.type === 'branch') {
+            const kids = nodesList.filter(n => n.parent === node.id);
+            extra += `
+                <div class="space-y-1.5">
+                    <div class="text-[10px] font-bold text-cyber-cyan">OUTILS DE LA CATÉGORIE (${kids.length}) :</div>
+                    ${kids.map(k => `<button type="button" data-node="${k.id}" class="w-full text-left px-2.5 py-1.5 rounded border border-cyber-border bg-cyber-panel/60 hover:bg-cyber-panel text-slate-200 flex items-center justify-between" style="border-left:3px solid ${node.color}"><span>${escapeHtml(k.title)}</span><i class="fas fa-chevron-right text-slate-500"></i></button>`).join('')}
+                </div>`;
+        } else {
+            extra += `
+                <div class="space-y-1.5">
+                    <div class="text-[10px] font-bold text-cyber-cyan">CATÉGORIES :</div>
+                    ${BRANCHES.map(b => `<button type="button" data-node="${b.id}" class="w-full text-left px-2.5 py-1.5 rounded border border-cyber-border bg-cyber-panel/60 hover:bg-cyber-panel text-slate-200" style="border-left:3px solid ${b.color}">${escapeHtml(b.title)}</button>`).join('')}
+                </div>`;
+        }
+
+        const definitionBlock = node.definition ? `
+                <div class="bg-cyber-dark/80 border-l-2 border-cyber-cyan rounded p-2.5 space-y-1">
+                    <div class="text-[10px] font-bold text-cyber-cyan tracking-wider"><i class="fas fa-book"></i> DÉFINITION :</div>
+                    <p class="text-slate-200 text-xs leading-relaxed">${escapeHtml(node.definition)}</p>
+                </div>` : '';
+
+        $('hud-body').innerHTML = `
+            <div class="space-y-3 fade-up">
+                <div class="border-b border-cyber-border pb-2">
+                    <span class="text-[10px] text-slate-400">[ID: ${node.id.toUpperCase()}]</span>
+                    <h2 class="text-xl font-bold font-display" style="color:${node.color}">${escapeHtml(node.title)}</h2>
+                </div>
+                ${definitionBlock}
+                <p class="text-slate-300 text-xs leading-relaxed">${escapeHtml(node.desc)}</p>
+                ${extra}
+            </div>`;
+    }
+
+    /* =========================================================
+       DÉMO ATTAQUE / DÉFENSE (simulation scénarisée, hors-ligne)
+       ========================================================= */
+    let simTimer = null;
+
+    function clearSim() {
+        if (simTimer) { clearTimeout(simTimer); simTimer = null; }
+    }
+
+    function runSimulation(nodeId, mode) {
+        const node = nodeById[nodeId];
+        const out = $('sim-output');
+        if (!node || !out) return;
+        const lines = mode === 'attack' ? node.attackDemo : node.defenseDemo;
+        if (!lines || !lines.length) return;
+
+        clearSim();
+        out.textContent = '';
+        out.classList.remove('text-cyber-red', 'text-cyber-green', 'text-slate-300');
+        out.classList.add(mode === 'attack' ? 'text-cyber-red' : 'text-cyber-green');
+        logTerminal('[SIM] ' + (mode === 'attack' ? 'Attaque' : 'Défense') + ' simulée : ' + node.title, mode === 'attack' ? 'text-cyber-red' : 'text-cyber-green');
+
+        let i = 0;
+        const step = () => {
+            if (i >= lines.length) { simTimer = null; return; }
+            out.textContent += (i ? '\n' : '') + lines[i];
+            out.scrollTop = out.scrollHeight;
+            playTone(mode === 'attack' ? 260 + i * 18 : 520 + i * 14, 'square', 0.03);
+            i++;
+            simTimer = setTimeout(step, reduceMotion ? 0 : 320);
+        };
+        step();
+    }
+
+    function copyText(text) {
+        const done = () => logTerminal('[COPY] Commande copiée dans le presse-papiers.', 'text-cyber-green');
+        const fallback = () => {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) { logTerminal('[ERR] Copie impossible.', 'text-cyber-red'); }
+            document.body.removeChild(ta);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done).catch(fallback);
+        } else { fallback(); }
+    }
+
+    /* =========================================================
+       CANVAS : caméra, rendu, interactions
+       ========================================================= */
+    const canvas = $('mindmap-canvas');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, dpr = 1;
+    const cam = { x: 0, y: 0, z: 1 };
+    const target = { x: 0, y: 0, z: 1 };
+    let userMoved = false;
+    let selectedNode = null;
+    let related = null;
+    let hoverNode = null;
+
+    function resizeCanvas() {
+        const r = $('canvas-container').getBoundingClientRect();
+        W = Math.max(1, r.width); H = Math.max(1, r.height);
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.round(W * dpr);
+        canvas.height = Math.round(H * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        if (!userMoved) fitView(true);
+    }
+
+    function fitView(immediate) {
+        let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+        nodesList.forEach(n => {
+            minx = Math.min(minx, n.x); maxx = Math.max(maxx, n.x);
+            miny = Math.min(miny, n.y); maxy = Math.max(maxy, n.y);
+        });
+        const bw = (maxx - minx) + 240, bh = (maxy - miny) + 200;
+        const z = clamp(Math.min(W / bw, H / bh), 0.3, 1.3);
+        target.z = z;
+        target.x = -((minx + maxx) / 2) * z;
+        target.y = -((miny + maxy) / 2) * z;
+        if (immediate) { cam.x = target.x; cam.y = target.y; cam.z = target.z; }
+    }
+
+    function resetGraphView() {
+        userMoved = false;
+        fitView(false);
+        selectedNode = null; related = null;
+        closeHud(true);
+        playTone(400, 'sine', 0.05);
+        logTerminal('[GRAPH] Vue réinitialisée.', 'text-slate-400');
+    }
+
+    function toScreen(n) {
+        return { x: W / 2 + cam.x + n.x * cam.z, y: H / 2 + cam.y + n.y * cam.z };
+    }
+
+    function nodeRadius(n) {
+        return (n.type === 'root' ? 32 : n.type === 'branch' ? 22 : 15) * cam.z;
+    }
+
+    function nodeAt(mx, my) {
+        for (let i = nodesList.length - 1; i >= 0; i--) {
+            const n = nodesList[i];
+            const s = toScreen(n);
+            if (Math.hypot(mx - s.x, my - s.y) <= Math.max(nodeRadius(n) + 6, 14)) return n;
+        }
+        return null;
+    }
+
+    function zoomAt(factor, mx, my) {
+        const nz = clamp(cam.z * factor, 0.3, 2.5);
+        const f = nz / cam.z;
+        cam.x = (mx - W / 2) - (mx - W / 2 - cam.x) * f;
+        cam.y = (my - H / 2) - (my - H / 2 - cam.y) * f;
+        cam.z = nz;
+        target.x = cam.x; target.y = cam.y; target.z = cam.z;
+        userMoved = true;
+    }
+
+    function computeRelated(n) {
+        if (!n) return null;
+        const s = new Set([n.id]);
+        if (n.id === 'root') { nodesList.forEach(x => s.add(x.id)); return s; }
+        s.add('root');
+        if (n.type === 'branch') nodesList.filter(x => x.parent === n.id).forEach(x => s.add(x.id));
+        else s.add(n.parent);
+        return s;
+    }
+
+    function selectNode(node, center) {
+        if (!node) return;
+        clearSim();
+        selectedNode = node;
+        related = computeRelated(node);
+        playTone(node.type === 'tool' ? 850 : 600, 'square', 0.08);
+        if (center) {
+            const z = node.type === 'root' ? clamp(target.z, 0.3, 1.3) : Math.max(target.z, 1.05);
+            target.z = z; target.x = -node.x * z; target.y = -node.y * z;
+        }
+        renderNodeHud(node);
+        openHud();
+        logTerminal('[NODE] Sélectionné : ' + node.title, 'text-cyber-cyan');
+    }
+
+    function closeHud(silent) {
+        clearSim();
+        selectedNode = null; related = null;
+        highlightCard(null);
+        setHudPlaceholder();
+        hideHudSheet();
+        if (!silent) playTone(300, 'sine', 0.04);
+    }
+
+    function drawGrid() {
+        const step = 60 * cam.z;
+        if (step < 12) return;
+        const ox = ((W / 2 + cam.x) % step + step) % step;
+        const oy = ((H / 2 + cam.y) % step + step) % step;
+        ctx.strokeStyle = 'rgba(0,243,255,0.045)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = ox; x < W; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+        for (let y = oy; y < H; y += step) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+        ctx.stroke();
+    }
+
+    function drawLabel(n, s, r, dim) {
+        const base = n.type === 'root' ? 13 : n.type === 'branch' ? 11 : 10;
+        const fs = clamp(base * cam.z, 9, 18);
+        ctx.font = fs + 'px "Share Tech Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const lines = n.lines || [n.title];
+        const lh = fs + 3;
+        const widths = lines.map(l => ctx.measureText(l).width);
+        const bw = Math.max.apply(null, widths) + 10;
+        const bh = lines.length * lh + 4;
+        const top = s.y + r + 6;
+        ctx.globalAlpha = dim ? 0.3 : 1;
+        ctx.fillStyle = 'rgba(7,10,20,0.82)';
+        ctx.fillRect(s.x - bw / 2, top, bw, bh);
+        ctx.fillStyle = (selectedNode && selectedNode.id === n.id) ? '#ffffff' : (n.color || '#00ff66');
+        lines.forEach((l, i) => ctx.fillText(l, s.x, top + 2 + lh * i + lh / 2));
+        ctx.globalAlpha = 1;
+    }
+
+    function frame(t) {
+        const k = reduceMotion ? 1 : 0.14;
+        cam.x += (target.x - cam.x) * k;
+        cam.y += (target.y - cam.y) * k;
+        cam.z += (target.z - cam.z) * k;
+
+        ctx.clearRect(0, 0, W, H);
+        drawGrid();
+
+        // Liens + paquets de données
+        nodesList.forEach((n, idx) => {
+            if (!n.parent) return;
+            const p = nodeById[n.parent];
+            const a = toScreen(p), b = toScreen(n);
+            const dim = related && !(related.has(n.id) && related.has(p.id));
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = n.color;
+            ctx.lineWidth = Math.max(1, (n.type === 'branch' ? 2.5 : 1.5) * cam.z);
+            ctx.globalAlpha = dim ? 0.1 : 0.5;
+            ctx.stroke();
+            if (!reduceMotion && !dim) {
+                for (let j = 0; j < 2; j++) {
+                    const f = ((t / 2600) + j * 0.5 + idx * 0.137) % 1;
+                    ctx.beginPath();
+                    ctx.arc(a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, Math.max(1.5, 2.2 * cam.z), 0, Math.PI * 2);
+                    ctx.fillStyle = n.color;
+                    ctx.globalAlpha = 0.9;
+                    ctx.fill();
+                }
+            }
+            ctx.globalAlpha = 1;
+        });
+
+        // Nœuds
+        nodesList.forEach(n => {
+            const s = toScreen(n);
+            const r = nodeRadius(n);
+            const isSel = selectedNode && selectedNode.id === n.id;
+            const isHover = hoverNode && hoverNode.id === n.id;
+            const dim = related && !related.has(n.id);
+            const pulse = (!reduceMotion && n.type === 'root') ? Math.sin(t / 500) * 3 * cam.z : 0;
+
+            ctx.globalAlpha = dim ? 0.25 : 1;
+
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r + (isSel ? 7 : isHover ? 5 : 2) + pulse, 0, Math.PI * 2);
+            ctx.fillStyle = n.color;
+            ctx.globalAlpha = (dim ? 0.25 : 1) * (isSel ? 0.35 : isHover ? 0.28 : 0.15);
+            ctx.fill();
+
+            ctx.globalAlpha = dim ? 0.25 : 1;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+            ctx.fillStyle = '#0a0e1a';
+            ctx.strokeStyle = isSel ? '#ffffff' : n.color;
+            ctx.lineWidth = (isSel ? 3 : 2) * cam.z;
+            ctx.fill();
+            ctx.stroke();
+
+            // Symbole intérieur
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, r * (n.type === 'tool' ? 0.35 : 0.5), 0, Math.PI * 2);
+            ctx.fillStyle = n.color;
+            ctx.globalAlpha = (dim ? 0.25 : 1) * (n.type === 'root' ? 0.9 : 0.55);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            drawLabel(n, s, r, dim);
+        });
+
+        requestAnimationFrame(frame);
+    }
+
+    function setupCanvasEvents() {
+        const pointers = new Map();
+        let moved = 0;
+        let pinchDist = 0;
+
+        const local = (e) => {
+            const r = canvas.getBoundingClientRect();
+            return { x: e.clientX - r.left, y: e.clientY - r.top };
+        };
+        const pDist = () => {
+            const [a, b] = Array.from(pointers.values());
+            return Math.hypot(a.x - b.x, a.y - b.y);
+        };
+
+        canvas.addEventListener('pointerdown', (e) => {
+            canvas.setPointerCapture(e.pointerId);
+            pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            moved = 0;
+            if (pointers.size === 2) pinchDist = pDist();
+            canvas.classList.remove('cursor-grab');
+            canvas.classList.add('cursor-grabbing');
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            const prev = pointers.get(e.pointerId);
+            if (!prev) {
+                const p = local(e);
+                hoverNode = nodeAt(p.x, p.y);
+                canvas.style.cursor = hoverNode ? 'pointer' : '';
+                return;
+            }
+            if (pointers.size === 1) {
+                const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+                moved += Math.abs(dx) + Math.abs(dy);
+                if (moved > 6) {
+                    cam.x += dx; cam.y += dy;
+                    target.x = cam.x; target.y = cam.y;
+                    userMoved = true;
+                }
+                pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            } else if (pointers.size === 2) {
+                pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+                const d = pDist();
+                if (pinchDist > 0) {
+                    const [a, b] = Array.from(pointers.values());
+                    const r = canvas.getBoundingClientRect();
+                    zoomAt(d / pinchDist, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+                }
+                pinchDist = d;
+                moved += 10;
+            }
+        });
+
+        const end = (e) => {
+            const wasSingle = pointers.size === 1 && pointers.has(e.pointerId);
+            pointers.delete(e.pointerId);
+            if (wasSingle && moved <= 6 && e.type === 'pointerup') {
+                const p = local(e);
+                const n = nodeAt(p.x, p.y);
+                if (n) selectNode(n, false);
+            }
+            if (pointers.size === 0) {
+                canvas.classList.add('cursor-grab');
+                canvas.classList.remove('cursor-grabbing');
+            }
+            pinchDist = 0;
+        };
+        canvas.addEventListener('pointerup', end);
+        canvas.addEventListener('pointercancel', end);
+        canvas.addEventListener('pointerleave', () => { hoverNode = null; });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const p = local(e);
+            zoomAt(e.deltaY < 0 ? 1.1 : 0.9, p.x, p.y);
+        }, { passive: false });
+    }
+
+    /* =========================================================
+       PRÉSENTATION GUIDÉE
+       ========================================================= */
+    // Ordre : équipe, chaque membre, racine, puis chaque catégorie suivie de ses outils
+    const tourSteps = [{ kind: 'team' }];
+    TEAM.forEach(m => tourSteps.push({ kind: 'member', id: m.id }));
+    tourSteps.push({ kind: 'node', id: 'root' });
+    BRANCHES.forEach(b => {
+        tourSteps.push({ kind: 'node', id: b.id });
+        TOOLS.filter(t => t.parent === b.id).forEach(t => tourSteps.push({ kind: 'node', id: t.id }));
+    });
+
+    let tourActive = false;
+    let tourIndex = 0;
+    let autoTimer = null;
+
+    function updateTourUI() {
+        $('tour-counter').textContent = 'ÉTAPE ' + (tourIndex + 1) + '/' + tourSteps.length;
+        $('tour-progress').style.width = ((tourIndex + 1) / tourSteps.length * 100) + '%';
+    }
+
+    function executeTourStep() {
+        const step = tourSteps[tourIndex];
+        updateTourUI();
+        if (step.kind === 'team') {
+            setView('team', true);
+            closeHud(true);
+        } else if (step.kind === 'member') {
+            setView('team', true);
+            selectTeamMember(step.id);
+        } else {
+            setView('map', true);
+            selectNode(nodeById[step.id], true);
+        }
+    }
+
+    function startTour() {
+        tourActive = true;
+        tourIndex = 0;
+        $('tour-bar').classList.remove('hidden');
+        $('btn-tour').firstElementChild.className = 'fas fa-stop';
+        logTerminal('[TOUR] Mode présentation activé.', 'text-cyber-yellow');
+        executeTourStep();
+    }
+
+    function stopTour() {
+        tourActive = false;
+        setAuto(false);
+        $('tour-bar').classList.add('hidden');
+        $('btn-tour').firstElementChild.className = 'fas fa-play';
+        logTerminal('[TOUR] Mode présentation désactivé.', 'text-slate-400');
+    }
+
+    function toggleTour() { tourActive ? stopTour() : startTour(); }
+
+    function stepTour(delta) {
+        if (!tourActive) { startTour(); return; }
+        tourIndex = (tourIndex + delta + tourSteps.length) % tourSteps.length;
+        executeTourStep();
+    }
+
+    function setAuto(on) {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        $('tour-auto').classList.toggle('bg-cyber-yellow', on);
+        $('tour-auto').classList.toggle('text-black', on);
+        if (on) {
+            if (!tourActive) startTour();
+            autoTimer = setInterval(() => stepTour(1), 6000);
+            logTerminal('[TOUR] Lecture automatique (6 s / étape).', 'text-cyber-yellow');
+        }
+    }
+
+    /* =========================================================
+       COMMANDES TERMINAL
+       ========================================================= */
+    const COMMANDS = ['aide', 'equipe', 'carte', 'suivant', 'precedent', 'tour', 'stop', 'auto', 'fit', 'liste', 'clear', 'search', 'attaque', 'defense'];
+    const history = [];
+    let histIdx = 0;
+
+    function processCommand(cmdStr) {
+        const parts = cmdStr.toLowerCase().trim().split(/\s+/);
+        const primary = parts[0];
+        const arg = parts.slice(1).join(' ');
+
+        switch (primary) {
+            case 'equipe': case 'team': setView('team'); break;
+            case 'carte': case 'map': case 'mindmap': setView('map'); break;
+            case 'suivant': case 'next': stepTour(1); break;
+            case 'precedent': case 'prev': stepTour(-1); break;
+            case 'tour': toggleTour(); break;
+            case 'stop': if (tourActive) stopTour(); break;
+            case 'auto': setAuto(!autoTimer); break;
+            case 'fit': case 'reset': setView('map', true); resetGraphView(); break;
+            case 'clear': case 'cls': $('cli-output').innerHTML = ''; break;
+            case 'liste': case 'ls':
+                logTerminal('MEMBRES : ' + TEAM.map(m => m.id).join(', '), 'text-cyber-yellow');
+                logTerminal('OUTILS : ' + TOOLS.map(t => t.id).join(', '), 'text-cyber-yellow');
+                break;
+            case 'rechercher': case 'search': {
+                if (!arg) { logTerminal('[ERR] Usage : search <nom>', 'text-cyber-red'); break; }
+                const hit = nodesList.find(n => n.id.includes(arg) || n.title.toLowerCase().includes(arg));
+                if (hit) { setView('map', true); selectNode(hit, true); }
+                else logTerminal("[ERR] Aucun résultat pour '" + arg + "'.", 'text-cyber-red');
+                break;
+            }
+            case 'attaque': case 'attack': {
+                if (!arg) { logTerminal('[ERR] Usage : attaque <outil>', 'text-cyber-red'); break; }
+                const t = nodeById[arg];
+                if (t && t.type === 'tool') { setView('map', true); selectNode(t, true); runSimulation(t.id, 'attack'); }
+                else logTerminal("[ERR] Outil '" + arg + "' inconnu.", 'text-cyber-red');
+                break;
+            }
+            case 'defense': case 'defence': {
+                if (!arg) { logTerminal('[ERR] Usage : defense <outil>', 'text-cyber-red'); break; }
+                const t = nodeById[arg];
+                if (t && t.type === 'tool') { setView('map', true); selectNode(t, true); runSimulation(t.id, 'defense'); }
+                else logTerminal("[ERR] Outil '" + arg + "' inconnu.", 'text-cyber-red');
+                break;
+            }
+            case 'aide': case 'help':
+                logTerminal('=== COMMANDES DISPONIBLES ===', 'text-cyber-yellow');
+                logTerminal('equipe | carte : changer de vue');
+                logTerminal('hamza, souhail, mouaad, islam, ilyass : dossier membre');
+                logTerminal('nmap, burp, sqlmap, metasploit, wazuh… : fiche outil (liste : tous)');
+                logTerminal('attaque <outil> | defense <outil> : lance la démo simulée');
+                logTerminal('suivant | precedent | tour | auto | stop : présentation');
+                logTerminal('search <nom> | fit | clear');
+                break;
+            case 'sudo':
+                logTerminal("Nice try. Cette console n'a pas de privilèges… ni de vrais exploits.", 'text-cyber-purple');
+                break;
+            default:
+                if (teamById[primary]) { selectTeamMember(primary); break; }
+                if (nodeById[primary]) { setView('map', true); selectNode(nodeById[primary], true); break; }
+                logTerminal("[ERR] Commande '" + primary + "' inconnue. Tapez 'aide'.", 'text-cyber-red');
+        }
+    }
+
+    function setupTerminal() {
+        const input = $('cli-input');
+        $('cli-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const val = input.value.trim();
+            input.value = '';
+            if (!val) return;
+            history.push(val);
+            histIdx = history.length;
+            logTerminal('root@cyberdeck:~# ' + val, 'text-cyber-green font-bold');
+            processCommand(val);
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (histIdx > 0) input.value = history[--histIdx];
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                histIdx = Math.min(histIdx + 1, history.length);
+                input.value = history[histIdx] || '';
+            } else if (e.key === 'Tab') {
+                e.preventDefault();
+                const v = input.value.toLowerCase();
+                if (!v) return;
+                const pool = COMMANDS.concat(TEAM.map(m => m.id), nodesList.map(n => n.id));
+                const m = pool.find(c => c.startsWith(v));
+                if (m) input.value = m;
+            } else if (e.key === 'Escape') {
+                input.blur();
+            }
+        });
+    }
+
+    /* =========================================================
+       ÉVÉNEMENTS GLOBAUX
+       ========================================================= */
+    function setupUI() {
+        $('btn-view-team').addEventListener('click', () => setView('team'));
+        $('btn-view-map').addEventListener('click', () => setView('map'));
+        $('btn-go-map').addEventListener('click', () => setView('map'));
+        $('btn-tour').addEventListener('click', toggleTour);
+        $('btn-audio').addEventListener('click', toggleAudio);
+        $('tour-prev').addEventListener('click', () => stepTour(-1));
+        $('tour-next').addEventListener('click', () => stepTour(1));
+        $('tour-stop').addEventListener('click', stopTour);
+        $('tour-auto').addEventListener('click', () => setAuto(!autoTimer));
+        $('zoom-in').addEventListener('click', () => { zoomAt(1.2, W / 2, H / 2); playTone(500, 'sine', 0.04); });
+        $('zoom-out').addEventListener('click', () => { zoomAt(0.8, W / 2, H / 2); playTone(500, 'sine', 0.04); });
+        $('zoom-fit').addEventListener('click', resetGraphView);
+        $('hud-close').addEventListener('click', () => closeHud(false));
+
+        $('team-grid').addEventListener('click', (e) => {
+            const card = e.target.closest('[data-member]');
+            if (card) selectTeamMember(card.dataset.member);
+        });
+
+        $('hud-body').addEventListener('click', (e) => {
+            const simBtn = e.target.closest('[data-sim]');
+            if (simBtn) { runSimulation(simBtn.dataset.simNode, simBtn.dataset.sim); return; }
+            const nodeBtn = e.target.closest('[data-node]');
+            if (nodeBtn) { selectNode(nodeById[nodeBtn.dataset.node], true); return; }
+            const copyBtn = e.target.closest('[data-copy]');
+            if (copyBtn) copyText(copyBtn.dataset.copy);
+        });
+
+        // Raccourcis catégories
+        $('branch-shortcuts').innerHTML = BRANCHES.map(b =>
+            `<button type="button" data-branch="${b.id}" class="text-left hover:brightness-150 transition leading-tight"><span style="color:${b.color}">${b.title.slice(0, 2)}</span> ${escapeHtml(b.title.slice(3))}</button>`
+        ).join('');
+        $('branch-shortcuts').addEventListener('click', (e) => {
+            const b = e.target.closest('[data-branch]');
+            if (b) { setView('map', true); selectNode(nodeById[b.dataset.branch], true); }
+        });
+
+        // Clavier
+        window.addEventListener('keydown', (e) => {
+            const tag = (document.activeElement && document.activeElement.tagName) || '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                if (tag === 'BUTTON' && e.key === ' ') return;
+                e.preventDefault(); stepTour(1);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault(); stepTour(-1);
+            } else if (e.key === 'Escape') {
+                if (tourActive) stopTour(); else closeHud(false);
+            } else if (e.key === 'f' || e.key === 'F') {
+                setView('map', true); resetGraphView();
+            } else if (e.key === 't' || e.key === 'T') {
+                setView('team');
+            } else if (e.key === 'm' || e.key === 'M') {
+                setView('map');
+            } else if (e.key === '+' || e.key === '=') {
+                zoomAt(1.2, W / 2, H / 2);
+            } else if (e.key === '-') {
+                zoomAt(0.8, W / 2, H / 2);
+            }
+        });
+
+        // Horloge UTC
+        const tick = () => { $('live-clock').textContent = new Date().toISOString().substr(11, 8) + ' UTC'; };
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    /* =========================================================
+       INIT
+       ========================================================= */
+    function init() {
+        renderTeamGrid();
+        setHudPlaceholder();
+        setupUI();
+        setupTerminal();
+        setupCanvasEvents();
+
+        resizeCanvas();
+        if (window.ResizeObserver) new ResizeObserver(resizeCanvas).observe($('canvas-container'));
+        else window.addEventListener('resize', resizeCanvas);
+
+        setView('team', true);
+        requestAnimationFrame(frame);
+
+        logTerminal('[BOOT] Système de présentation cybersécurité initialisé.', 'text-cyber-green');
+        logTerminal("Sélectionnez un membre ou explorez la carte. Tapez 'aide' pour les commandes.", 'text-slate-500');
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+</script>
+</body>
+</html>
